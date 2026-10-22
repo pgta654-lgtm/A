@@ -1,0 +1,619 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NAIF GAME STUDIO</title>
+<style>
+:root{
+  --bg:#0b0a10;--panel:#14121d;--panel2:#1b1728;
+  --line:#30263f;--purple:#8b5cf6;--text:#f5f3ff;
+  --muted:#aaa1bd;--green:#45dfa0;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+font-family:Tahoma,Arial,sans-serif;height:100vh;overflow:hidden}
+button,input,select{font:inherit}
+button{cursor:pointer;color:var(--text);background:var(--panel2);
+border:1px solid var(--line);border-radius:7px;padding:8px 10px}
+button:hover{border-color:var(--purple);background:#2a2040}
+button.active{background:#6234bd;border-color:#a78bfa}
+.app{height:100vh;display:grid;grid-template-rows:60px 44px 1fr 27px}
+header{display:flex;align-items:center;justify-content:space-between;
+gap:12px;padding:0 14px;background:#100e17;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:bold}
+.logo{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;
+background:linear-gradient(140deg,#a78bfa,#6d28d9);font-size:21px}
+.brand small{display:block;color:var(--muted);font-weight:normal;margin-top:4px}
+.actions{display:flex;gap:7px;flex-wrap:wrap}
+.toolbar{display:flex;align-items:center;gap:7px;padding:5px 10px;
+background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto}
+.workspace{display:grid;grid-template-columns:220px minmax(0,1fr) 245px;min-height:0}
+.panel{background:var(--panel);min-height:0;overflow:auto}
+.left{border-left:1px solid var(--line)}
+.right{border-right:1px solid var(--line)}
+.panel-title{position:sticky;top:0;background:var(--panel);z-index:2;
+padding:13px;border-bottom:1px solid var(--line);font-weight:bold}
+.section{padding:12px;border-bottom:1px solid var(--line)}
+.section h3{font-size:12px;color:var(--muted);margin:0 0 10px}
+.scene-item{padding:10px;border-radius:6px;margin-bottom:4px;cursor:pointer;
+font-size:13px;display:flex;justify-content:space-between;gap:6px}
+.scene-item:hover,.scene-item.selected{background:#322348}
+.scene-item.selected{outline:1px solid var(--purple)}
+.viewport{position:relative;min-width:0;min-height:0;background:#0d0b13}
+#view{width:100%;height:100%;display:block;touch-action:none}
+.viewport-label{position:absolute;top:12px;right:12px;pointer-events:none;
+background:#100e17dd;border:1px solid var(--line);padding:8px 10px;
+border-radius:8px;font-size:12px}
+.viewport-bottom{position:absolute;bottom:12px;right:12px;left:12px;
+display:flex;justify-content:space-between;gap:8px;pointer-events:none}
+.hint{background:#100e17dd;border:1px solid var(--line);border-radius:7px;
+padding:8px;color:var(--muted);font-size:11px}
+.field{margin:12px 0}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+.field input,.field select{width:100%;padding:9px;background:#0e0c14;
+color:var(--text);border:1px solid var(--line);border-radius:6px;min-width:0}
+.xyz{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.xyz label{text-align:center}
+.xyz input{text-align:center;padding:8px 3px}
+.full{width:100%}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.status{display:flex;align-items:center;justify-content:space-between;
+padding:0 12px;background:#100e17;border-top:1px solid var(--line);
+font-size:11px;color:var(--muted)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;
+background:var(--green);margin-left:5px}
+#empty{color:var(--muted);font-size:12px;line-height:1.8}
+input[type=color]{height:38px;padding:3px!important}
+#notice{position:absolute;top:60px;left:12px;background:#201832;
+border:1px solid #6d46a7;border-radius:8px;padding:10px 13px;
+font-size:12px;display:none;z-index:5}
+@media(max-width:760px){
+ .app{grid-template-rows:auto auto 1fr 27px}
+ header{padding:9px;align-items:flex-start;flex-direction:column}
+ .brand small{display:none}
+ .actions button{padding:7px;font-size:12px}
+ .workspace{grid-template-columns:115px minmax(0,1fr)}
+ .right{display:none}
+ .left .panel-title{padding:10px;font-size:12px}
+ .section{padding:8px}
+ .scene-item{font-size:11px;padding:8px 4px}
+ .toolbar{gap:5px}
+ .toolbar button{font-size:11px;padding:7px}
+ .viewport-label{font-size:10px}
+}
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="brand">
+    <div class="logo">N</div>
+    <div>NAIF GAME STUDIO<small>استوديو تطوير الألعاب ثلاثية الأبعاد</small></div>
+  </div>
+  <div class="actions">
+    <button id="newProject">مشروع جديد</button>
+    <button id="saveProject">حفظ المشروع</button>
+    <button id="loadProject">فتح مشروع</button>
+    <button id="exportGame" class="active">تصدير اللعبة</button>
+    <input id="fileInput" type="file" accept=".json,application/json" hidden>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="addCube">＋ مكعب</button>
+  <button id="addSphere">＋ كرة</button>
+  <button id="addPlane">＋ أرضية</button>
+  <button id="moveTool" class="active">تحريك</button>
+  <button id="rotateTool">تدوير</button>
+  <button id="scaleTool">تحجيم</button>
+  <button id="deleteObject">حذف العنصر</button>
+  <button id="toggleGrid">إظهار الشبكة</button>
+</div>
+
+<div class="workspace">
+  <aside class="panel left">
+    <div class="panel-title">شجرة المشهد</div>
+    <div class="section">
+      <h3>الكائنات</h3>
+      <div id="sceneTree"></div>
+      <div id="empty">المشهد فارغ. أضف مكعبًا أو كرة للبدء.</div>
+    </div>
+    <div class="section">
+      <h3>اختصارات</h3>
+      <div id="help" style="font-size:11px;color:var(--muted);line-height:2">
+        اختر العنصر من المشهد.<br>
+        اسحب المحاور لتحريكه.<br>
+        اسحب الخلفية لتدوير الكاميرا.<br>
+        استخدم عجلة الفأرة للتقريب.
+      </div>
+    </div>
+  </aside>
+
+  <main class="viewport">
+    <canvas id="view"></canvas>
+    <div class="viewport-label">المشهد الرئيسي / 3D</div>
+    <div id="notice"></div>
+    <div class="viewport-bottom">
+      <div class="hint">NAIF ENGINE · WEB EDITION</div>
+      <div class="hint" id="selectedLabel">لا يوجد عنصر محدد</div>
+    </div>
+  </main>
+
+  <aside class="panel right">
+    <div class="panel-title">خصائص العنصر</div>
+    <div class="section">
+      <div class="field">
+        <label>اسم العنصر</label>
+        <input id="objectName" placeholder="اسم العنصر">
+      </div>
+      <div class="field">
+        <label>اللون</label>
+        <input id="objectColor" type="color" value="#8b5cf6">
+      </div>
+    </div>
+    <div class="section">
+      <h3>الموقع X / Y / Z</h3>
+      <div class="xyz">
+        <div class="field"><label>X</label><input id="px" type="number" step=".1" value="0"></div>
+        <div class="field"><label>Y</label><input id="py" type="number" step=".1" value="0"></div>
+        <div class="field"><label>Z</label><input id="pz" type="number" step=".1" value="0"></div>
+      </div>
+    </div>
+    <div class="section">
+      <h3>الدوران بالدرجات</h3>
+      <div class="xyz">
+        <div class="field"><label>X</label><input id="rx" type="number" step="5" value="0"></div>
+        <div class="field"><label>Y</label><input id="ry" type="number" step="5" value="0"></div>
+        <div class="field"><label>Z</label><input id="rz" type="number" step="5" value="0"></div>
+      </div>
+    </div>
+    <div class="section">
+      <h3>الحجم</h3>
+      <div class="xyz">
+        <div class="field"><label>X</label><input id="sx" type="number" min=".05" step=".1" value="1"></div>
+        <div class="field"><label>Y</label><input id="sy" type="number" min=".05" step=".1" value="1"></div>
+        <div class="field"><label>Z</label><input id="sz" type="number" min=".05" step=".1" value="1"></div>
+      </div>
+      <button id="applyProps" class="full active">تطبيق الخصائص</button>
+    </div>
+    <div class="section">
+      <h3>المشهد</h3>
+      <div class="field"><label>لون الخلفية</label>
+        <input id="bgColor" type="color" value="#0d0b13">
+      </div>
+      <button id="resetCamera" class="full">إعادة ضبط الكاميرا</button>
+    </div>
+  </aside>
+</div>
+
+<footer class="status">
+  <span><span class="dot"></span>المحرر جاهز</span>
+  <span id="objectCount">0 عنصر</span>
+</footer>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
+
+const $ = id => document.getElementById(id);
+const canvas = $('view');
+
+const renderer = new THREE.WebGLRenderer({
+  canvas, antialias:true, alpha:false
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#0d0b13');
+
+const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 1000);
+camera.position.set(8, 7, 10);
+
+const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.enableDamping = true;
+orbit.target.set(0, 1, 0);
+
+scene.add(new THREE.HemisphereLight(0xded6ff, 0x30213f, 2));
+
+const sun = new THREE.DirectionalLight(0xffffff, 3);
+sun.position.set(5, 10, 7);
+sun.castShadow = true;
+scene.add(sun);
+
+const grid = new THREE.GridHelper(100, 100, 0x7751ac, 0x30263f);
+scene.add(grid);
+
+const axes = new THREE.AxesHelper(2);
+scene.add(axes);
+
+const transform = new TransformControls(camera, renderer.domElement);
+scene.add(transform.getHelper());
+transform.setMode('translate');
+
+transform.addEventListener('dragging-changed', e => {
+  orbit.enabled = !e.value;
+});
+transform.addEventListener('objectChange', () => {
+  if (selected) updateFieldsFromObject(selected);
+});
+transform.addEventListener('change', render);
+transform.addEventListener('mouseUp', render);
+
+const objects = [];
+let selected = null;
+let nextId = 1;
+
+function resize() {
+  const w = canvas.clientWidth || 800;
+  const h = canvas.clientHeight || 500;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  render();
+}
+window.addEventListener('resize', resize);
+
+function render() {
+  renderer.render(scene, camera);
+}
+
+function notify(message) {
+  const n = $('notice');
+  n.textContent = message;
+  n.style.display = 'block';
+  clearTimeout(notify.timer);
+  notify.timer = setTimeout(() => n.style.display='none', 2600);
+}
+
+function makeMaterial(color) {
+  return new THREE.MeshStandardMaterial({
+    color, roughness: .58, metalness: .08
+  });
+}
+
+function addObject(type, data = null) {
+  let geometry;
+  if (type === 'Sphere') geometry = new THREE.SphereGeometry(.7, 32, 20);
+  else if (type === 'Plane') geometry = new THREE.BoxGeometry(10, .15, 10);
+  else geometry = new THREE.BoxGeometry(1, 1, 1);
+
+  const mesh = new THREE.Mesh(
+    geometry, makeMaterial(data?.color || '#8b5cf6')
+  );
+  mesh.name = data?.name || `${type}_${nextId++}`;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+
+  if (data) {
+    mesh.position.fromArray(data.position || [0,0,0]);
+    mesh.rotation.set(...(data.rotation || [0,0,0]));
+    mesh.scale.fromArray(data.scale || [1,1,1]);
+  } else if (type === 'Plane') {
+    mesh.position.y = -.1;
+    mesh.material.color.set('#51466b');
+  } else {
+    mesh.position.set(0, type === 'Sphere' ? 1 : .5, 0);
+  }
+
+  mesh.userData.editorType = type;
+  scene.add(mesh);
+  objects.push(mesh);
+  selectObject(mesh);
+  refreshTree();
+  updateStatus();
+  render();
+  return mesh;
+}
+
+function selectObject(obj) {
+  selected = obj || null;
+  transform.attach(selected);
+  $('selectedLabel').textContent = selected ? selected.name : 'لا يوجد عنصر محدد';
+  $('objectName').value = selected?.name || '';
+  $('objectColor').value = selected
+    ? '#' + selected.material.color.getHexString() : '#8b5cf6';
+
+  const enabled = !!selected;
+  [
+    'objectName','objectColor','px','py','pz','rx','ry','rz',
+    'sx','sy','sz','applyProps','deleteObject'
+  ].forEach(id => $(id).disabled = !enabled);
+
+  if (selected) updateFieldsFromObject(selected);
+  refreshTree();
+  render();
+}
+
+function updateFieldsFromObject(obj) {
+  $('px').value = obj.position.x.toFixed(2);
+  $('py').value = obj.position.y.toFixed(2);
+  $('pz').value = obj.position.z.toFixed(2);
+  $('rx').value = THREE.MathUtils.radToDeg(obj.rotation.x).toFixed(1);
+  $('ry').value = THREE.MathUtils.radToDeg(obj.rotation.y).toFixed(1);
+  $('rz').value = THREE.MathUtils.radToDeg(obj.rotation.z).toFixed(1);
+  $('sx').value = obj.scale.x.toFixed(2);
+  $('sy').value = obj.scale.y.toFixed(2);
+  $('sz').value = obj.scale.z.toFixed(2);
+}
+
+function refreshTree() {
+  const tree = $('sceneTree');
+  tree.replaceChildren();
+  $('empty').style.display = objects.length ? 'none' : 'block';
+
+  objects.forEach(obj => {
+    const item = document.createElement('div');
+    item.className = 'scene-item' + (obj === selected ? ' selected' : '');
+    const icon = obj.userData.editorType === 'Sphere' ? '◉'
+      : obj.userData.editorType === 'Plane' ? '▱' : '▧';
+
+    const name = document.createElement('span');
+    name.textContent = icon + '  ' + obj.name;
+    name.style.overflow = 'hidden';
+    name.style.textOverflow = 'ellipsis';
+
+    const kind = document.createElement('span');
+    kind.textContent = obj.userData.editorType;
+    kind.style.color = '#a99cbd';
+    kind.style.fontSize = '10px';
+
+    item.append(name, kind);
+    item.addEventListener('click', () => selectObject(obj));
+    tree.appendChild(item);
+  });
+}
+
+function updateStatus() {
+  $('objectCount').textContent = objects.length + ' عنصر';
+}
+
+function applyProperties() {
+  if (!selected) return;
+
+  const num = id => {
+    const value = Number($(id).value);
+    return Number.isFinite(value) ? value : 0;
+  };
+
+  selected.name = $('objectName').value.trim() || 'Object';
+  selected.position.set(num('px'), num('py'), num('pz'));
+  selected.rotation.set(
+    THREE.MathUtils.degToRad(num('rx')),
+    THREE.MathUtils.degToRad(num('ry')),
+    THREE.MathUtils.degToRad(num('rz'))
+  );
+  selected.scale.set(
+    Math.max(.05, num('sx')),
+    Math.max(.05, num('sy')),
+    Math.max(.05, num('sz'))
+  );
+  selected.material.color.set($('objectColor').value);
+  refreshTree();
+  updateFieldsFromObject(selected);
+  render();
+  notify('تم تطبيق الخصائص');
+}
+
+$('addCube').onclick = () => addObject('Cube');
+$('addSphere').onclick = () => addObject('Sphere');
+$('addPlane').onclick = () => addObject('Plane');
+
+$('moveTool').onclick = () => setTool('translate', 'moveTool');
+$('rotateTool').onclick = () => setTool('rotate', 'rotateTool');
+$('scaleTool').onclick = () => setTool('scale', 'scaleTool');
+
+function setTool(mode, buttonId) {
+  transform.setMode(mode);
+  ['moveTool','rotateTool','scaleTool'].forEach(id =>
+    $(id).classList.toggle('active', id === buttonId)
+  );
+  render();
+}
+
+$('applyProps').onclick = applyProperties;
+$('objectName').addEventListener('change', applyProperties);
+$('objectColor').addEventListener('input', () => {
+  if (selected) {
+    selected.material.color.set($('objectColor').value);
+    render();
+  }
+});
+
+$('deleteObject').onclick = () => {
+  if (!selected) return;
+  scene.remove(selected);
+  selected.geometry.dispose();
+  selected.material.dispose();
+  objects.splice(objects.indexOf(selected), 1);
+  selectObject(null);
+  refreshTree();
+  updateStatus();
+  render();
+  notify('تم حذف العنصر');
+};
+
+$('toggleGrid').onclick = () => {
+  grid.visible = !grid.visible;
+  axes.visible = grid.visible;
+  $('toggleGrid').classList.toggle('active', grid.visible);
+  render();
+};
+
+$('bgColor').oninput = () => {
+  scene.background.set($('bgColor').value);
+  render();
+};
+
+$('resetCamera').onclick = () => {
+  camera.position.set(8, 7, 10);
+  orbit.target.set(0, 1, 0);
+  orbit.update();
+  render();
+};
+
+function serializeProject() {
+  return {
+    format: 'NAIF-GAME-STUDIO',
+    version: 1,
+    background: '#' + scene.background.getHexString(),
+    objects: objects.map(obj => ({
+      type: obj.userData.editorType,
+      name: obj.name,
+      color: '#' + obj.material.color.getHexString(),
+      position: obj.position.toArray(),
+      rotation: [obj.rotation.x,obj.rotation.y,obj.rotation.z],
+      scale: obj.scale.toArray()
+    }))
+  };
+}
+
+function downloadText(filename, content, type='application/json') {
+  const blob = new Blob([content], {type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+$('saveProject').onclick = () => {
+  downloadText('naif-game-project.json',
+    JSON.stringify(serializeProject(), null, 2));
+  notify('تم تنزيل ملف المشروع');
+};
+
+$('loadProject').onclick = () => $('fileInput').click();
+
+$('fileInput').onchange = async e => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (data.format !== 'NAIF-GAME-STUDIO' || !Array.isArray(data.objects)) {
+      throw new Error('ملف مشروع غير معروف');
+    }
+    objects.slice().forEach(obj => {
+      scene.remove(obj);
+      obj.geometry.dispose();
+      obj.material.dispose();
+    });
+    objects.length = 0;
+    nextId = 1;
+    scene.background.set(data.background || '#0d0b13');
+    $('bgColor').value = data.background || '#0d0b13';
+
+    data.objects.forEach(obj => addObject(obj.type || 'Cube', obj));
+    selectObject(null);
+    refreshTree();
+    updateStatus();
+    render();
+    notify('تم فتح المشروع');
+  } catch (err) {
+    notify('تعذر فتح الملف: ' + err.message);
+  }
+  e.target.value = '';
+};
+
+$('newProject').onclick = () => {
+  if (objects.length && !confirm('إنشاء مشروع جديد؟ التغييرات غير المحفوظة ستفقد.')) return;
+  objects.slice().forEach(obj => {
+    scene.remove(obj);
+    obj.geometry.dispose();
+    obj.material.dispose();
+  });
+  objects.length = 0;
+  nextId = 1;
+  scene.background.set('#0d0b13');
+  $('bgColor').value = '#0d0b13';
+  selectObject(null);
+  refreshTree();
+  updateStatus();
+  render();
+  notify('تم إنشاء مشروع جديد');
+};
+
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+
+canvas.addEventListener('pointerdown', e => {
+  if (transform.axis !== null) return;
+  const rect = canvas.getBoundingClientRect();
+  pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(objects, false);
+  if (hits.length) selectObject(hits[0].object);
+});
+
+$('exportGame').onclick = () => {
+  const data = JSON.stringify(serializeProject());
+  const playable = `<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>لعبتي - NAIF</title>
+<style>body{margin:0;background:#0d0b13;color:white;font-family:Arial}
+canvas{display:block;width:100vw;height:100vh}#msg{position:fixed;top:10px;right:10px;
+background:#171323dd;padding:10px;border-radius:8px}</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"}}</scr` + `ipt>
+</head><body><div id="msg">لعبتي — NAIF GAME STUDIO</div><canvas id="game"></canvas>
+<script type="module">
+import * as THREE from 'three';
+const data=${data};
+const renderer=new THREE.WebGLRenderer({canvas:document.querySelector('#game'),antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+const scene=new THREE.Scene();scene.background=new THREE.Color(data.background);
+const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,1000);
+camera.position.set(8,7,10);camera.lookAt(0,1,0);
+scene.add(new THREE.HemisphereLight(0xffffff,0x554466,2));
+const light=new THREE.DirectionalLight(0xffffff,3);light.position.set(5,10,7);
+light.castShadow=true;scene.add(light);
+const ground=new THREE.GridHelper(100,100,0x7751ac,0x30263f);scene.add(ground);
+for(const o of data.objects){
+ let g;
+ if(o.type==='Sphere')g=new THREE.SphereGeometry(.7,32,20);
+ else if(o.type==='Plane')g=new THREE.BoxGeometry(10,.15,10);
+ else g=new THREE.BoxGeometry(1,1,1);
+ const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:o.color,roughness:.58}));
+ m.position.fromArray(o.position);m.rotation.set(...o.rotation);m.scale.fromArray(o.scale);
+ m.castShadow=true;m.receiveShadow=true;scene.add(m);
+}
+function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()}
+addEventListener('resize',resize);resize();
+function loop(){requestAnimationFrame(loop);renderer.render(scene,camera)}loop();
+</scr` + `ipt></body></html>`;
+  downloadText('naif-playable-game.html', playable, 'text/html');
+  notify('تم تصدير نسخة معاينة HTML');
+};
+
+function loop() {
+  requestAnimationFrame(loop);
+  orbit.update();
+  renderer.render(scene, camera);
+}
+
+resize();
+addObject('Plane');
+addObject('Cube');
+loop();
+</script>
+</body>
+</html>
+
